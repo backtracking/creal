@@ -10,12 +10,15 @@ open Creal.Infixes
 let prec = ref 50
 let display = ref true
 let sanity_check = ref false
+let exit_on_error = ref false
 
 let _ = 
   Arg.parse 
       ["-p", Arg.Int ((:=) prec), "n  set the precision";
        "-silent", Arg.Clear display, "  no display";
-       "-check", Arg.Set sanity_check, "  only sanity checks" ]
+       "-check", Arg.Set sanity_check, "  only sanity checks";
+       "-exit-on-error", Arg.Set exit_on_error, " exit with error code 1 if an error occurs"
+      ]
       (fun s -> raise (Arg.Bad ("unknown option " ^ s)))
       "test [-p prec] [silent]"
 
@@ -33,7 +36,7 @@ let check msg x y =
     if Z.compare (Z.abs delta) Z.one <= 0 then 
       printf "ok\n\n"
     else begin
-      printf "FAILED!\n\n"; exit 1
+      printf "FAILED!\n\n"; if !exit_on_error then exit 1
     end;
     flush stdout
   end
