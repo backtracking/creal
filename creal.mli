@@ -14,14 +14,10 @@
  * (enclosed in the file LGPL).
  *)
 
-(*i $Id$ i*)
-
 (*s {\bf Constructive reals} are implemented by the following abstract
     datatype [t]. If [x] is a constructive real, then the function call
     [approx x n] returns an approximation of [x] up to $4^{-n}$, as
     an arbitrary precision integer $x_n$ such that $|4^n\cdot x - x_n| < 1$. *)
-
-open Gmp
 
 type t
 
@@ -121,7 +117,7 @@ val to_q : t -> int -> Q.t
     [to_beautiful_string] returns the same decimal number but with
     digits packed 5 by 5. *)
 
-val to_string : ?radix:int -> t -> int -> string
+val to_string : t -> int -> string
 val to_beautiful_string : t -> int -> string
 
 (*s Format pretty-printer. *)

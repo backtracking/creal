@@ -1,0 +1,24 @@
+opam-version: "1.2"
+version: "0.8"
+maintainer: "filliatr@lri.fr"
+authors: [
+  "Jean-Christophe Filliâtre"
+  "François Bobot"
+]
+homepage: "https://www.lri.fr/~filliatr/creal.fr.html"
+dev-repo: "git://github.com/backtracking/creal"
+bug-reports: "https://github.com/backtracking/creal/issues"
+license: "LGPL-2.1"
+build: [
+  [ "dune" "build" "--for-release-of-packages" "creal" "-j" jobs ]
+]
+
+build-test: [
+  [ "dune" "runtest" "--for-release-of-packages" "creal" "-j" jobs]
+]
+
+depends: [
+  "dune" {build}
+  "zarith"
+]
+available: [ ocaml-version >= "4.02.3" ]

@@ -14,12 +14,6 @@
  * (enclosed in the file LGPL).
  *)
 
-(*i $Id$ i*)
-
-(*i*)
-open Gmp
-(*i*)
-
 (*s This module implements constructive reals (exact real numbers),
     following the algorithms given in Valérie Ménissier-Morain's
     thesis (\small\verb!http://www-calfor.lip6.fr/~vmm/!).
@@ -57,9 +51,9 @@ let fdiv_Bexp z n =
   if n == 0 then
     z
   else if n > 0 then
-    Z.fdiv_q_2exp z (n + n)
+    Z.shift_right z (n + n)
   else
-    Z.mul2exp z (-(n + n))
+    Z.shift_left z (-(n + n))
 
 (*i
 let max_prec = ref 0
@@ -76,44 +70,44 @@ let approx x n =
 
 (*s Some useful constants in [Z.t] and [Q.t]. *)
 
-let z_zero = Z.from_int 0
-let z_one = Z.from_int 1
-let z_two = Z.from_int 2
-let z_three = Z.from_int 3
-let z_four = Z.from_int 4
+let z_zero = Z.of_int 0
+let z_one = Z.of_int 1
+let z_two = Z.of_int 2
+let z_three = Z.of_int 3
+let z_four = Z.of_int 4
 
-let q_half = Q.from_ints 1 2
-let q_zero = Q.from_ints 0 1
-let q_one = Q.from_ints 1 1
-let q_two = Q.from_ints 2 1
-let q_four = Q.from_ints 4 1
+let q_half = Q.of_ints 1 2
+let q_zero = Q.of_ints 0 1
+let q_one = Q.of_ints 1 1
+let q_two = Q.of_ints 2 1
+let q_four = Q.of_ints 4 1
 
 (*s Utility functions over [Z.t] and [Q.t]. *)
 
-let z_gt x y = Z.cmp x y > 0
-let z_le x y = Z.cmp x y <= 0
+let z_gt x y = Z.compare x y > 0
+let z_le x y = Z.compare x y <= 0
 
 let z_between lb x up = z_le lb x && z_le x up
 
-let z_even x = (Z.cmp (Z.cdiv_r_ui x 2) z_zero) == 0
+let z_even x = not (Z.testbit x 0)
 
-let q_max q1 q2 = if Q.cmp q1 q2 >= 0 then q1 else q2
+let q_max q1 q2 = if Q.compare q1 q2 >= 0 then q1 else q2
 
-let q_abs q = if Q.sgn q < 0 then Q.neg q else q
+let q_abs q = if Q.sign q < 0 then Q.neg q else q
 
 (*s Roundings. Floor, ceil and Gau\ss\ rounding over [Q.t]. The Gau\ss\
     rounding of $x$, written $\gauss{x}$, is the (only) integer such that
     $\gauss{x} - \half \le x < \gauss{x} + \half$. *)
 
-let q_floor q = Z.fdiv_q (Q.get_num q) (Q.get_den q)
+let q_floor q = Z.fdiv (Q.num q) (Q.den q)
 
-let q_ceil q = Z.cdiv_q (Q.get_num q) (Q.get_den q)
+let q_ceil q = Z.cdiv (Q.num q) (Q.den q)
 
 let gauss_round q =
   let q' = Q.add q q_half in
-  Z.fdiv_q (Q.get_num q') (Q.get_den q')
+  Z.fdiv (Q.num q') (Q.den q')
 
-let gauss_round_z_over_4 z = Z.fdiv_q_2exp (Z.add_ui z 2) 2
+let gauss_round_z_over_4 z = Z.shift_right (Z.add z z_two) 2
 
 (*s Addition (Algorithm 2 page 50).
     We have $\ap{(x+y)}{n} = \lfloor(\ap{x}{n+1}+\ap{y}{n+1})/4\rceil$.
@@ -194,21 +188,21 @@ let msd_with_max m x =
 
 let mul_Bexp z n =
   if n == 0 then
-    Q.from_z z
+    Q.of_bigint z
   else if n > 0 then
-    Q.from_z (Z.mul2exp z (n + n))
+    Q.of_bigint (Z.shift_left z (n + n))
   else
-    Q.from_zs z (Z.mul2exp z (-(n + n)))
+    Q.make z (Z.shift_left z (-(n + n)))
 
 let bexp n = mul_Bexp z_one n
 
 let div_Bexp z n =
   if n == 0 then
-    Q.from_z z
+    Q.of_bigint z
   else if n > 0 then
-    Q.from_zs z (Z.mul2exp z_one (n + n))
+    Q.make z (Z.shift_left z_one (n + n))
   else
-    Q.from_z (Z.mul2exp z (-(n + n)))
+    Q.of_bigint (Z.shift_left z (-(n + n)))
 
 (*s Multiplication (Algorithm 4 page 51). *)
 
@@ -221,9 +215,9 @@ let mul x y =
        and py = max (n - (msd' x) + 3) d in
        let xpx = approx x px
        and ypy = approx y py in
-       let z = gauss_round (div_Bexp (Z.add_ui (Z.abs (Z.mul xpx ypy)) 1)
+       let z = gauss_round (div_Bexp (Z.add (Z.abs (Z.mul xpx ypy)) Z.one)
 			      (px + py - n)) in
-       if Z.sgn xpx = Z.sgn ypy then z else Z.neg z)
+       if Z.sign xpx = Z.sign ypy then z else Z.neg z)
 
 let ( *! ) = mul
 
@@ -238,7 +232,7 @@ let inv x =
 	else
 	  let k = n + 2 * msdx + 1 in
 	  let xk = approx x k in
-	  let q = Q.div (bexp (k + n)) (Q.from_z xk) in
+	  let q = Q.div (bexp (k + n)) (Q.of_bigint xk) in
 	  if z_gt xk z_one then q_ceil q else q_floor q)
 
 let div x y = x *! (inv y)
@@ -251,7 +245,7 @@ let sqrt x =
   create
     (function n ->
        let x2n = approx x (n + n) in
-       if Z.sgn x2n < 0 then invalid_arg "Creal.sqrt";
+       if Z.sign x2n < 0 then invalid_arg "Creal.sqrt";
        Z.sqrt x2n)
 
 (*s Coercions from integers and rationals (Algorithm 1 page 49)
@@ -261,22 +255,22 @@ let fmul_Bexp q n =
   if n == 0 then
     q_floor q
   else if n > 0 then
-    Z.fdiv_q (Z.mul2exp (Q.get_num q) (n + n)) (Q.get_den q)
+    Z.fdiv (Z.shift_left (Q.num q) (n + n)) (Q.den q)
   else
-    q_floor (Q.div q (Q.from_z (Z.mul2exp z_one (-(n + n)))))
+    q_floor (Q.div q (Q.of_bigint (Z.shift_left z_one (-(n + n)))))
 
 let of_z z =
   { cache = Some (0,z);
     msd = None;
-    approximate = function n -> fmul_Bexp (Q.from_z z) n }
+    approximate = function n -> fmul_Bexp (Q.of_bigint z) n }
 
 let of_q q = create (fmul_Bexp q)
 
 let to_q x n =
   let xn = approx x n in
-  Q.div (Q.from_z xn) (bexp n)
+  Q.div (Q.of_bigint xn) (bexp n)
 
-let of_int n = of_z (Z.from_int n)
+let of_int n = of_z (Z.of_int n)
 
 let zero = of_int 0
 let one = of_int 1
@@ -295,14 +289,14 @@ let rec pow_int x n =
     if n mod 2 == 0 then y else mul y x
 
 let rec pow_z x n =
-  let c = Z.cmp_si n 0 in
+  let c = Z.compare n Z.zero in
   if c == 0 then
     one
   else if c < 0 then
     inv (pow_z x (Z.neg n))
   else
-    let y = pow_z (mul x x) (Z.fdiv_q_2exp n 1) in
-    if Z.cmp_si (Z.dmod_ui n 2) 0 == 0 then y else mul y x
+    let y = pow_z (mul x x) (Z.shift_right n 1) in
+    if not (Z.testbit n 0) then y else mul y x
 
 (*s Alternate power series. The following function
     [alternate_powerserie_] computes $B^p S$ where $S$ is the partial
@@ -317,7 +311,7 @@ let alternate_powerserie_ a0 next p =
   let rec sum s n an =
     (* [s] is already the sum up to $a_n$ *)
     let asn = next n an in
-    if Q.cmp (q_abs asn) eps < 0 then
+    if Q.compare (q_abs asn) eps < 0 then
       s
     else
       sum (if n mod 2 == 0 then Q.sub s asn else Q.add s asn) (n + 1) asn
@@ -328,7 +322,7 @@ let alternate_powerserie_ a0 next p =
     integer. *)
 
 let arctan_reciproqual m =
-  let m_inverse = Q.from_ints 1 m in
+  let m_inverse = Q.of_ints 1 m in
   let m_inverse_square = Q.mul m_inverse m_inverse in
   create
     (fun n ->
@@ -336,8 +330,8 @@ let arctan_reciproqual m =
        let rec sum s sign k p =
 	 (* [s] is already the sum up to $a_k$ *)
 	 let p' = Q.mul p m_inverse_square in
-	 let t = Q.mul p' (Q.from_ints 1 (k + 2)) in
-	 if Q.cmp t eps < 0 then
+	 let t = Q.mul p' (Q.of_ints 1 (k + 2)) in
+	 if Q.compare t eps < 0 then
 	   s
 	 else
 	   sum (if sign then Q.add s t else Q.sub s t) (not sign) (k + 2) p'
@@ -368,7 +362,7 @@ let half_pi = pi /! two
 let arctan_ x =
   let square_x = Q.mul x x in
   let next n an =
-    Q.mul (Q.mul an square_x) (Q.from_ints (2 * n + 1) (2 * n + 3))
+    Q.mul (Q.mul an square_x) (Q.of_ints (2 * n + 1) (2 * n + 3))
   in
   alternate_powerserie_ x next
 
@@ -377,16 +371,16 @@ let arctan_def x =
     (function n ->
        let k = max 0 (n + 1) in
        let xk = approx x k in
-       if Z.cmp_si xk 0 == 0 then
+       if Z.compare xk Z.zero == 0 then
 	 z_zero
        else
-	 let q = Q.from_zs xk (Z.pow_ui_ui 4 k) in
+	 let q = Q.make xk (Z.pow z_four k) in
 	 q_floor (Q.add
 		    (Q.div (Q.add (arctan_ q (n + 1)) q_one) q_four)
 		    (Q.div
 		       (bexp (n + k))
 		       (Q.add (bexp (2 * n + 2))
-			  (Q.from_z (Z.add (Z.mul xk xk) xk))))))
+			  (Q.of_bigint (Z.add (Z.mul xk xk) xk))))))
 
 (*s The above definition of [arctan] converges very slowly when $|x|\ge 1$.
     The convergence is accelerated using the following identities:
@@ -404,16 +398,16 @@ let arctan_def x =
 
 let arctan x =
   let x1 = approx x 1 in
-  if Z.cmp_si x1 (-5) < 0 then
+  if Z.compare x1 (Z.of_int (-5)) < 0 then
     (* $x < -1$ *)
     neg (half_pi +! arctan_def (inv x))
-  else if Z.cmp_si x1 (-3) <= 0 then
+  else if Z.compare x1 (Z.of_int (-3)) <= 0 then
     (* $x$ close to $-1$ *)
     neg (half_pi +! arctan_def ((one -! x *! x) /! (two *! x))) /! two
-  else if Z.cmp_si x1 5 >  0 then
+  else if Z.compare x1 (Z.of_int 5) >  0 then
     (* $x > 1$ *)
     half_pi -! arctan_def (inv x)
-  else if Z.cmp_si x1 3 >= 0 then
+  else if Z.compare x1 (Z.of_int 3) >= 0 then
     (* $x$ close to 1 *)
     (half_pi -! arctan_def ((one -! x *! x) /! (two *! x))) /! two
   else
@@ -443,46 +437,46 @@ let arccos x =
 (*s Sinus (Algorithm 15 page 69). *)
 
 let rec sin_ x p =
-  if Q.cmp x q_zero >= 0 then
+  if Q.compare x q_zero >= 0 then
     let square_x = Q.mul x x in
     let next n an =
-      Q.mul (Q.mul (Q.mul an square_x) (Q.from_ints 1 (2 * n + 2)))
-	    (Q.from_ints 1 (2 * n + 3))
+      Q.mul (Q.mul (Q.mul an square_x) (Q.of_ints 1 (2 * n + 2)))
+	    (Q.of_ints 1 (2 * n + 3))
     in
     alternate_powerserie_ x next p
   else
     Q.neg (sin_ (Q.neg x) p)
 
 let sin x =
-  let p = Z.sub_ui (approx (x /! pi) 0) 1 in
-  let theta = if Z.cmp_si p 0 == 0 then x else x -! ((of_z p) *! pi) in
+  let p = Z.pred (approx (x /! pi) 0) in
+  let theta = if Z.compare p Z.zero == 0 then x else x -! ((of_z p) *! pi) in
   let z = half_pi in
   create
     (fun n ->
        let k = max 2 (n + 2) in
        let zk = approx z k in
-       let twozk = Z.mul2exp zk 1 in
-       let threezk = Z.mul_ui zk 3 in
-       let fourzk = Z.mul2exp zk 2 in
+       let twozk = Z.shift_left zk 1 in
+       let threezk = Z.mul zk z_three in
+       let fourzk = Z.shift_left zk 2 in
        let thetak = approx theta k in
        if (z_between z_zero thetak z_one) ||
-	  (z_between (Z.sub_ui fourzk 4) thetak (Z.add_ui fourzk 4)) ||
-	  (z_between (Z.sub_ui twozk 2) thetak (Z.add_ui twozk 2)) then
+	  (z_between (Z.sub fourzk z_four) thetak (Z.add fourzk z_four)) ||
+	  (z_between (Z.sub twozk z_two) thetak (Z.add twozk z_two)) then
          z_zero
-       else if z_between (Z.sub_ui zk 1) thetak (Z.add_ui zk 1) then
-	 let bn = Z.mul2exp z_one (n + n) in
+       else if z_between (Z.pred zk) thetak (Z.succ zk) then
+	 let bn = Z.shift_left z_one (n + n) in
 	 if z_even p then bn else Z.neg bn
-       else if z_between (Z.sub_ui threezk 3) thetak (Z.add_ui threezk 3) then
-	 let bn = Z.mul2exp z_one (n + n) in
+       else if z_between (Z.sub threezk z_three) thetak (Z.add threezk z_three) then
+	 let bn = Z.shift_left z_one (n + n) in
 	 if z_even p then Z.neg bn else bn
        else
-         let q = Q.from_zs thetak (Z.pow_ui_ui 4 k) in
+         let q = Q.make thetak (Z.pow z_four k) in
 	 let s = sin_ q (n + 2) in
-	 let bw = Q.from_ints 16 1 in
+	 let bw = Q.of_ints 16 1 in
 	 let bn_k = bexp (n - k) in
 	 let r =
-	   if (z_between z_two thetak (Z.sub_ui zk 2)) ||
-              (z_between (Z.add_ui zk 2) thetak (Z.sub_ui twozk 3)) then
+	   if (z_between z_two thetak (Z.sub zk z_two)) ||
+              (z_between (Z.add zk z_two) thetak (Z.sub twozk z_three)) then
 	     q_floor (Q.add (Q.div (Q.add s q_one) bw) bn_k)
 	   else
 	     q_ceil (Q.sub (Q.div (Q.sub s q_one) bw) bn_k)
@@ -513,15 +507,15 @@ let e =
        else
 	 let eps = bexp (-p) in
 	 let rec sum s n an =
-	   let rn = Q.mul (Q.from_ints 1 n) an in
-	   if Q.cmp rn eps <= 0 then begin
+	   let rn = Q.mul (Q.of_ints 1 n) an in
+	   if Q.compare rn eps <= 0 then begin
 	     e_cache.order <- n;
 	     e_cache.sum <- s;
 	     e_cache.term <- an;
 	     e_cache.prec <- p;
 	     fmul_Bexp s p
 	   end else
-	     let asn = Q.mul (Q.from_ints 1 (n + 1)) an in
+	     let asn = Q.mul (Q.of_ints 1 (n + 1)) an in
 	     sum (Q.add s asn) (n + 1) asn
 	 in
 	 sum e_cache.sum e_cache.order e_cache.term)
@@ -537,8 +531,8 @@ let ln_above_1 r =
     let rec sum s k p =
       (* [s] is already the sum up to $a_k$ *)
       let p' = Q.mul p y_square in
-      let t = Q.mul p' (Q.from_ints 1 (k + 2)) in
-      if Q.cmp (Q.div t one_minus_y_square) eps < 0 then
+      let t = Q.mul p' (Q.of_ints 1 (k + 2)) in
+      if Q.compare (Q.div t one_minus_y_square) eps < 0 then
 	Q.mul q_two s
       else
 	sum (Q.add s t) (k + 2) p'
@@ -546,8 +540,8 @@ let ln_above_1 r =
     Q.div (sum y 1 y) eps
 
 let rec ln_ r =
-  if Q.cmp r q_zero <= 0 then invalid_arg "Creal.ln";
-  let cmp1 = Q.cmp r q_one in
+  if Q.compare r q_zero <= 0 then invalid_arg "Creal.ln";
+  let cmp1 = Q.compare r q_one in
   if cmp1 < 0 then
     (* $r < 1$ *)
     let ln_inverse_r = ln_ (Q.inv r) in
@@ -571,7 +565,7 @@ let rec ln x =
       (fun n ->
 	 let w = 2 - min 0 n in
 	 let k = n + msd_x + w in
-	 let xk = Q.from_z (approx x k) in
+	 let xk = Q.of_bigint (approx x k) in
 	 let q = Q.div xk (bexp k) in
 	 q_floor (Q.add (Q.div (Q.add (ln_ q (n + w)) q_one) (bexp w))
 		        (Q.div (bexp n) xk)))
@@ -589,15 +583,15 @@ let arctanh x = ln ((one +! x) /! (one -! x)) /! two
 let exp_neg_ r =
   (* $-1 \le r < 0$ *)
   let r = q_abs r in
-  let next n an = Q.mul (Q.mul an r) (Q.from_ints 1 (n + 1)) in
+  let next n an = Q.mul (Q.mul an r) (Q.of_ints 1 (n + 1)) in
   create (fun n -> q_floor (alternate_powerserie_ q_one next n))
 
 let exp_ r =
-  if Q.cmp r q_zero == 0 then
+  if Q.compare r q_zero == 0 then
     one
   else
-    let s_floor_r = Z.add_ui (q_floor r) 1 in
-    mul (pow_z e s_floor_r) (exp_neg_ (Q.sub r (Q.from_z s_floor_r)))
+    let s_floor_r = Z.add (q_floor r) z_one in
+    mul (pow_z e s_floor_r) (exp_neg_ (Q.sub r (Q.of_bigint s_floor_r)))
 
 let exp x =
   create
@@ -607,42 +601,42 @@ let exp x =
        let invqbn = Q.inv qbn in
        let one_plus_invqbn = Q.add q_one invqbn in
        let test1 () =
-	 let lsup = log four (of_int 7 /! ln ((bn +! one) /! (bn -! one))) in
-	 let l = Z.int_from (approx lsup 0) + 1 in
+	 let lsup = log ~base:four (of_int 7 /! ln ((bn +! one) /! (bn -! one))) in
+	 let l = Z.to_int (approx lsup 0) + 1 in
 	 let xl = approx x l in
 	 let log1 = q_floor (ln_ (Q.sub q_one invqbn) l) in
 	 let log2 = q_floor (ln_ one_plus_invqbn l) in
-	 (Z.cmp (Z.add log1 z_two) xl < 0) &&
-	 (Z.cmp xl (Z.sub log2 z_two) < 0)
+	 (Z.compare (Z.add log1 z_two) xl < 0) &&
+	 (Z.compare xl (Z.sub log2 z_two) < 0)
        in
        let test2 () =
 	 let x0 = approx x 0 in
 	 let m = Z.sub (q_floor (ln_ one_plus_invqbn 0)) z_two in
-	 Z.cmp x0 m <= 0
+	 Z.compare x0 m <= 0
        in
        if (n > 0 && test1 ()) || (n <= 0 && test2 ()) then
 	 fmul_Bexp q_one n
        else
 	 let msd_x = msd x in
 	 let clogBe =
-	   if Z.cmp (approx x msd_x) z_one >= 0 then
-	     Q.from_ints 577080 100000
+	   if Z.compare (approx x msd_x) z_one >= 0 then
+	     Q.of_ints 577080 100000
 	   else
-	     Q.from_ints (-72134) 100000
+	     Q.of_ints (-72134) 100000
 	 in
 	 let d2 = Q.div clogBe (bexp msd_x) in
 	 let p = max 0 (n + 1) in
-	 let d = q_max (Q.from_ints (-p) 1) d2 in
-	 let k2 = q_ceil (Q.add d (Q.from_ints 44732 100000)) in
-	 let k = max 1 (max msd_x (p + 1 + Z.int_from k2)) in
+	 let d = q_max (Q.of_ints (-p) 1) d2 in
+	 let k2 = q_ceil (Q.add d (Q.of_ints 44732 100000)) in
+	 let k = max 1 (max msd_x (p + 1 + Z.to_int k2)) in
 	 let bk = bexp k in
 	 let xk = approx x k in
-	 let xkBk = Q.div (Q.from_z xk) bk in
+	 let xkBk = Q.div (Q.of_bigint xk) bk in
 	 let exp_xkBk_p = approx (exp_ xkBk) p in
-	 if Z.cmp exp_xkBk_p z_zero <= 0 then
+	 if Z.compare exp_xkBk_p z_zero <= 0 then
 	   z_zero
 	 else
-	   q_ceil (Q.mul (Q.sub (Q.div (Q.from_z exp_xkBk_p) q_four) q_one)
+	   q_ceil (Q.mul (Q.sub (Q.div (Q.of_bigint exp_xkBk_p) q_four) q_one)
 		         (Q.sub q_one (Q.inv bk))))
 
 let pow x y = exp (y *! ln x)
@@ -664,12 +658,12 @@ let compare x y =
   let rec cmp_rec n =
     let xn = approx x n in
     let yn = approx y n in
-    if z_gt (Z.add_ui xn 1) (Z.sub_ui yn 1) &&
-       z_gt (Z.add_ui yn 1) (Z.sub_ui xn 1)
+    if z_gt (Z.succ xn) (Z.pred yn) &&
+       z_gt (Z.succ yn) (Z.pred xn)
     then
       cmp_rec (succ n)
     else
-      if z_le (Z.add_ui xn 1) (Z.sub_ui yn 1) then -1 else 1
+      if z_le (Z.succ xn) (Z.pred yn) then -1 else 1
   in
   cmp_rec 0
 
@@ -677,13 +671,13 @@ let rel_cmp k x y =
   let rec cmp_rec n =
     let xn = approx x n in
     let yn = approx y n in
-    if z_gt (Z.add_ui xn 1) (Z.sub_ui yn 1) &&
-       z_gt (Z.add_ui yn 1) (Z.sub_ui xn 1) && n <= k + 2
+    if z_gt (Z.succ xn) (Z.pred yn) &&
+       z_gt (Z.succ yn) (Z.pred xn) && n <= k + 2
     then
       cmp_rec (succ n)
-    else if z_le (Z.add_ui xn 1) (Z.sub_ui yn 1) then
+    else if z_le (Z.succ xn) (Z.pred yn) then
       -1
-    else if z_le (Z.add_ui yn 1) (Z.sub_ui xn 1) then
+    else if z_le (Z.succ yn) (Z.pred xn) then
       1
     else
       0
@@ -692,9 +686,9 @@ let rel_cmp k x y =
 
 (*s Coercions to and from type [float]. *)
 
-let of_float f = of_q (Q.from_float f)
+let of_float f = of_q (Q.of_float f)
 
-let to_float x n = Q.float_from (to_q x n)
+let to_float x n = Q.to_float (to_q x n)
 
 (*s Coercion to and from type [string]. *)
 
@@ -706,9 +700,9 @@ let of_string ?(radix=10) s =
 	let p = String.index s '.' in
 	let dec = n - p - 1 in
 	let s' = (String.sub s 0 p) ^ (String.sub s (p + 1) dec) in
-	of_q (Q.from_zs (Z.from_string_base radix s') (Z.pow_ui_ui radix dec))
+	of_q (Q.make (Z.of_string_base radix s') (Z.pow (Z.of_int radix) dec))
       with Not_found ->
-	of_z (Z.from_string_base radix s)
+	of_z (Z.of_string_base radix s)
     end
   with Invalid_argument _ -> invalid_arg "Creal.of_string"
 
@@ -725,17 +719,18 @@ let of_string ?(radix=10) s =
 
 let to_string_aux x p =
   if p < 0 then invalid_arg "Creal.to_string";
-  let tenp = Z.pow_ui_ui 10 p in
+  let tenp = Z.pow (Z.of_int 10) p in
   let y = mul (of_z tenp) x in
   let y3 = approx y 3 in
-  let q,r = Z.fdiv_qr_ui y3 64 in
-  let r = Z.int_from r in
+  let r = Z.extract y3 0 6 in
+  let r = Z.to_int r in
+  let q = Z.shift_right y3 6 in
   let n,p =
     if r <= 31 then q, p
-    else if r >= 33 then Z.add_ui q 1, p
-    else Z.add_ui (Z.mul_ui q 10) 5, succ p
+    else if r >= 33 then Z.succ q, p
+    else Z.add (Z.mul q (Z.of_int 10)) (Z.of_int 5), succ p
   in
-  let ns = Z.string_from (Z.abs n) in
+  let ns = Z.to_string (Z.abs n) in
   let lns = String.length ns in
   let ins,dns =
     if lns >= p+1 then
@@ -743,13 +738,9 @@ let to_string_aux x p =
     else
       "0", String.make (p - lns) '0' ^ ns
   in
-  Z.sgn n, ins, dns
+  Z.sign n, ins, dns
 
-let to_string ?radix x p =
-  begin match radix with
-    | Some n when n<>10 -> invalid_arg "Creal.to_string: radix not implemented"
-    | Some _ | None -> ()
-  end;
+let to_string x p =
   let sgn,i,f = to_string_aux x p in
   (if sgn < 0 then "-" else "") ^ i ^ "." ^ f
 
@@ -785,9 +776,9 @@ let min x y =
        | None ->
 	   let xn = approx x n in
 	   let yn = approx y n in
-	   if z_le (Z.add_ui xn 1) (Z.sub_ui yn 1) then begin
+	   if z_le (Z.succ xn) (Z.pred yn) then begin
 	     min_xy := Some x; xn
-	   end else if z_le (Z.add_ui yn 1) (Z.sub_ui xn 1) then begin
+	   end else if z_le (Z.succ yn) (Z.pred xn) then begin
 	     min_xy := Some y; yn
 	   end else Z.min xn yn)
 
@@ -799,9 +790,9 @@ let max x y =
        | None ->
 	   let xn = approx x n in
 	   let yn = approx y n in
-	   if z_le (Z.add_ui xn 1) (Z.sub_ui yn 1) then begin
+	   if z_le (Z.succ xn) (Z.pred yn) then begin
 	     max_xy := Some y; yn
-	   end else if z_le (Z.add_ui yn 1) (Z.sub_ui xn 1) then begin
+	   end else if z_le (Z.succ yn) (Z.pred xn) then begin
 	     max_xy := Some x; xn
 	   end else Z.max xn yn)
 
@@ -817,4 +808,3 @@ module Infixes = struct
   let ( *! ) = mul
   let (/!) = div
 end
-
