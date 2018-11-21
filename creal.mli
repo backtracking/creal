@@ -21,6 +21,8 @@
 
 type t
 
+val create' : (int -> t) -> t
+
 val approx : t -> int -> Z.t
 
 val msd : t -> int

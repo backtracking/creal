@@ -68,6 +68,12 @@ let approx x n =
     | None -> compute ()
     | Some (m,a) -> if n <= m then fdiv_Bexp a (m - n) else compute ()
 
+
+let create' f =
+  let f' k = approx (f k) k in
+  create f'
+
+
 (*s Some useful constants in [Z.t] and [Q.t]. *)
 
 let z_zero = Z.of_int 0
