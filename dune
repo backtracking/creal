@@ -1,12 +1,12 @@
 (library
-  (name Creal)
-  (public_name creal)
-  (modules Creal)
+  (name CReal)
+  (public_name CReal)
+  (modules CReal)
   (libraries zarith)
 )
 
 (test
   (name test)
   (modules Test)
-  (libraries creal)
+  (libraries CReal)
 )
