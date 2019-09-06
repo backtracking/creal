@@ -2,8 +2,8 @@
 (*s Test program for [Creal]. *)
 
 open Printf
-open Creal
-open Creal.Infixes
+open CReal
+open CReal.Infixes
 
 (*s Options *)
 
