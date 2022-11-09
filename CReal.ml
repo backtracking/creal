@@ -198,7 +198,7 @@ let mul_Bexp z n =
   else if n > 0 then
     Q.of_bigint (Z.shift_left z (n + n))
   else
-    Q.make z (Z.shift_left z (-(n + n)))
+    Q.make z (Z.shift_left z_one (-(n + n)))
 
 let bexp n = mul_Bexp z_one n
 
@@ -601,7 +601,9 @@ let exp_ r =
 
 let exp x =
   create
-    (fun n ->
+    (fun n_ ->
+      let n = max n_ 1 in
+      let r =
        let qbn = bexp n in
        let bn = of_q qbn in
        let invqbn = Q.inv qbn in
@@ -643,7 +645,9 @@ let exp x =
 	   z_zero
 	 else
 	   q_ceil (Q.mul (Q.sub (Q.div (Q.of_bigint exp_xkBk_p) q_four) q_one)
-		         (Q.sub q_one (Q.inv bk))))
+		         (Q.sub q_one (Q.inv bk)))
+      in
+      Z.shift_right r (2 * (n - n_)))
 
 let pow x y = exp (y *! ln x)
 
