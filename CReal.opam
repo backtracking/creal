@@ -1,11 +1,11 @@
 opam-version: "2.0"
 version: "0.8"
-maintainer: "filliatr@lri.fr"
+maintainer: "Jean-Christophe.Filliatre@cnrs.fr"
 authors: [
   "Jean-Christophe Filliâtre"
   "François Bobot"
 ]
-homepage: "https://www.lri.fr/~filliatr/creal.fr.html"
+homepage: "https://github.com/backtracking/creal"
 dev-repo: "git://github.com/backtracking/creal"
 bug-reports: "https://github.com/backtracking/creal/issues"
 license: "LGPL-2.1"

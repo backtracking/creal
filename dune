@@ -10,3 +10,8 @@
   (modules Test)
   (libraries CReal)
 )
+
+(executable
+ (name draw_sin)
+ (modules draw_sin)
+ (libraries graphics CReal))

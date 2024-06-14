@@ -1,9 +1,8 @@
-all: build
 
-.PHONY: all build test
+all:
+	dune build @all
 
-build:
-	dune build
+.PHONY: all test
 
 test:
 	dune runtest

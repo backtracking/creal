@@ -12,8 +12,8 @@ let display = ref true
 let sanity_check = ref false
 let exit_on_error = ref false
 
-let _ = 
-  Arg.parse 
+let _ =
+  Arg.parse
       ["-p", Arg.Int ((:=) prec), "n  set the precision";
        "-silent", Arg.Clear display, "  no display";
        "-check", Arg.Set sanity_check, "  only sanity checks";
@@ -24,8 +24,8 @@ let _ =
 
 (*s Sanity checks. Compare two numbers up to the precision. *)
 
-let _ = 
-  if true then begin 
+let _ =
+  if true then begin
     printf "*** Sanity checks ***\n\n"; flush stdout
   end
 
@@ -33,7 +33,7 @@ let check msg x y =
   if true then begin
     printf "%s... " msg; flush stdout;
     let delta = Z.sub (approx x !prec) (approx y !prec) in
-    if Z.compare (Z.abs delta) Z.one <= 0 then 
+    if Z.compare (Z.abs delta) Z.one <= 0 then
       printf "ok\n\n"
     else begin
       printf "FAILED!\n\n"; if !exit_on_error then exit 1
@@ -58,7 +58,7 @@ let _ = check "(sqrt(2) ^ sqrt(2)) ^ sqrt(2) = 2"
 let one_third = of_int 1 /! of_int 3
 let root3 x = pow x one_third
 
-let _ = check "54^1/3 - 2^1/3 = 16^1/3" 
+let _ = check "54^1/3 - 2^1/3 = 16^1/3"
 	  (root3 (of_int 54) -! root3 two) (root3 (of_int 16))
 
 let _ = check "cos(0)=1" (cos zero) one
@@ -73,7 +73,7 @@ let _ = check "cos^2(pi/4) + sin^2(pi/4) = 1"
 
 let _ = check "tan(pi/4) = 1" (tan pi_over_4) one
 
-let _ = check "pi/4 = 4arctan(1/5) - arctan(1/239)" pi_over_4 
+let _ = check "pi/4 = 4arctan(1/5) - arctan(1/239)" pi_over_4
 	  (of_int 4 *! arctan_reciproqual 5 -! arctan_reciproqual 239)
 
 let _ = check "ln(1) = 0" (ln one) zero
@@ -90,7 +90,7 @@ let _ = if !sanity_check then exit 0
 
 (*s Benchmark. *)
 
-(* Test function: display the real number, if not [silent] ; otherwise, 
+(* Test function: display the real number, if not [silent] ; otherwise,
    just compute the approximation (for timings). *)
 
 let _ = printf "\n*** Benchmarks ***\n\n"; flush stdout
@@ -117,7 +117,7 @@ let _ = test "e" true e
 (* pi (predefined in [Creal]) *)
 let _ = test "pi" true pi
 
-(*s The Exact Arithmetic Competition: Level 0 Tests 
+(*s The Exact Arithmetic Competition: Level 0 Tests
    http://www.cs.man.ac.uk/arch/dlester/arithmetic/level0t.html *)
 
 (* sqrt(pi) *)
@@ -171,13 +171,16 @@ let _ = test "sin(1e50)" false x
 let x = cos ten_to_50
 let _ = test "cos(1e50)" false x
 
+let x = div (mul pi pi) (of_int 6)
+let _ = test "pi^2/6" true x
+
 (* arctan(1) *)
 		    (*let _ = test "arctan(1)" false (arctan one)*)
 
 (*i
 
 (* BUG GMP 2 *)
-let q = 
+let q =
   Q.from_zs (Z.from_int 1) (Z.from_string "19807040628566084398385987584" 10)
 let _ = Q.add q (Q.from_ints 1 2)
 
@@ -186,10 +189,10 @@ let q = Q.from_zs (Z.from_string "1128031241303374049986067576862748891130328829
 let q' = Q.add q (Q.from_ints 1 2)
 let _ = Z.fdiv_q (Q.get_num q') (Q.get_den q')
 
-let time f x = 
-  let old = Sys.time () in 
-  let y = f x in 
-  Printf.printf "%f\n" (Sys.time () -. old); 
+let time f x =
+  let old = Sys.time () in
+  let y = f x in
+  Printf.printf "%f\n" (Sys.time () -. old);
   y
 ;;
 
